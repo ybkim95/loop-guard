@@ -102,7 +102,7 @@ class StatisticalVerifier:
 
         # Accuracy checks
         for match in re.finditer(
-            r"accuracy\s*[=:]\s*([-+]?\d*\.?\d+)\s*%?", combined, re.IGNORECASE
+            r"accuracy\s*(?:[=:]|of|is|was|at)\s*([-+]?\d*\.?\d+)\s*%?", combined, re.IGNORECASE
         ):
             val = float(match.group(1))
             if val > 100 or val < 0:

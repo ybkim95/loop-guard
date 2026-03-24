@@ -18,12 +18,13 @@ CITATION_PATTERN = re.compile(
 
 METRIC_PATTERN = re.compile(
     r'((?:accuracy|precision|recall|f1|loss|val_bpb|auc|rmse|mae|mse|r2|bleu|rouge)'
-    r'[\s:=]+[\d.]+%?)',
+    r'[\s:=]+[\d.]+%?'
+    r'|(?:accuracy|precision|recall|f1|loss|auc|rmse|mae)\s+(?:of|is|was|at)\s+[\d.]+%?)',
     re.IGNORECASE,
 )
 
 PVALUE_PATTERN = re.compile(
-    r'(p[\s]*[<>=]+[\s]*[\d.]+(?:e-?\d+)?)'
+    r'(p[\s]*[<>=]+[\s]*[-+]?[\d.]+(?:e-?\d+)?)'
 )
 
 TEST_PATTERN = re.compile(
@@ -82,13 +83,33 @@ class ClaimExtractor:
     # Public API
     # ------------------------------------------------------------------
 
+    @staticmethod
+    def _strip_markdown(text: str) -> str:
+        """Remove markdown formatting that interferes with regex extraction."""
+        # Remove bold/italic markers
+        text = re.sub(r'\*{1,3}([^*]+)\*{1,3}', r'\1', text)
+        text = re.sub(r'_{1,3}([^_]+)_{1,3}', r'\1', text)
+        # Remove inline code backticks
+        text = re.sub(r'`([^`]+)`', r'\1', text)
+        return text
+
     def extract(self, step: NormalizedStep) -> list[Claim]:
         """Extract claims from *step* output using regex first, then optional LLM."""
         if not step.raw_output or not step.raw_output.strip():
             return []
 
+        # Strip markdown formatting before extraction
+        clean_step = NormalizedStep(
+            step_id=step.step_id,
+            timestamp=step.timestamp,
+            raw_output=self._strip_markdown(step.raw_output),
+            code_executed=step.code_executed,
+            files_modified=step.files_modified,
+            metadata=step.metadata,
+        )
+
         claims: list[Claim] = []
-        claims.extend(self._extract_regex(step))
+        claims.extend(self._extract_regex(clean_step))
 
         if self.use_llm and self._has_unmatched_content(step.raw_output, claims):
             claims.extend(self._extract_llm(step))

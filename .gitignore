@@ -14,3 +14,4 @@ build/
 *.json
 !pyproject.toml
 .omc/
+.env
