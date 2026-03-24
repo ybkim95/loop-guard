@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "loop-guard"
+name = "loopguard-ai"
 version = "0.1.0"
 description = "Deterministic verification for autonomous agent loops"
 readme = "README.md"

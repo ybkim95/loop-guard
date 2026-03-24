@@ -4,7 +4,7 @@
 
 loop-guard catches silent errors in agent loops by re-running code, looking up citations, and checking statistics — not by asking another LLM if the output "looks right."
 
-[![PyPI](https://img.shields.io/pypi/v/loop-guard)](https://pypi.org/project/loop-guard/)
+[![PyPI](https://img.shields.io/pypi/v/loopguard-ai)](https://pypi.org/project/loopguard-ai/)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)](https://python.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 
@@ -32,10 +32,10 @@ Agent Loop → Integration Layer → Claim Extractor → Verification Engine →
 ## Install
 
 ```bash
-pip install loop-guard
+pip install loopguard-ai
 
 # With LLM-based claim extraction (optional)
-pip install loop-guard[llm]
+pip install loopguard-ai[llm]
 ```
 
 ## Quick Start

@@ -165,7 +165,7 @@ loop-guard check --input agent_log.txt
 ## Install
 
 ```bash
-pip install loop-guard
+pip install loopguard-ai
 ```
 
 ## Why Not LLM-as-Judge?
@@ -187,7 +187,7 @@ loop-guard's design deliberately maximizes deterministic verification (Layer 1) 
 ## Links
 
 - **GitHub:** https://github.com/ybkim95/loop-guard
-- **PyPI:** `pip install loop-guard`
+- **PyPI:** `pip install loopguard-ai`
 - **83 tests passing**, framework-agnostic, Python 3.10+
 
 ---

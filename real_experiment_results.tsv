@@ -1,0 +1,16 @@
+step	val_bpb	peak_vram_mb	status	description
+0	4.582912	65.4	keep	baseline
+1	4.961131	118.6	discard	larger model (256 dim)
+2	4.84142	210.7	discard	deeper model (4 layers)
+3	6.201565	210.7	discard	higher LR 1e-3
+4	6.157807	218.7	discard	8 heads instead of 4
+5	6.205854	218.7	discard	LR 1.1e-3 (tiny tweak)
+6	6.319898	218.7	discard	LR 1.05e-3 (tiny tweak)
+7	6.07956	218.7	discard	LR 0.95e-3 (tiny tweak)
+8	5.949888	218.7	discard	LR 0.9e-3 (tiny tweak)
+9	6.451503	218.7	discard	weight decay 0.1
+10	6.777613	218.7	discard	weight decay 0.05
+11	5.913068	381.9	discard	larger batch size 64
+12	4.589539	755.5	discard	512 dim, 6 layers
+13	4.560519	990.8	keep	512 dim, 8 layers
+14	4.617005	995.7	discard	final: 512 dim, 8 layers, tuned LR
