@@ -5,15 +5,14 @@ from __future__ import annotations
 import difflib
 import os
 import time
-from typing import Optional
 
 from loop_guard.models import (
     Claim,
     ClaimType,
     Finding,
     NormalizedStep,
-    VerificationLevel,
     Verdict,
+    VerificationLevel,
 )
 
 
@@ -32,7 +31,7 @@ class RegressionVerifier:
             abs_path = os.path.abspath(file_path)
 
             try:
-                with open(abs_path, "r") as f:
+                with open(abs_path) as f:
                     current_content = f.read()
             except (OSError, UnicodeDecodeError):
                 continue

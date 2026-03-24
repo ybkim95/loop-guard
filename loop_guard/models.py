@@ -5,7 +5,6 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional
 
 
 class ClaimType(Enum):
@@ -45,7 +44,7 @@ class NormalizedStep:
     step_id: int
     timestamp: float
     raw_output: str
-    code_executed: Optional[str] = None
+    code_executed: str | None = None
     files_modified: list[str] = field(default_factory=list)
     metadata: dict = field(default_factory=dict)
 
@@ -58,7 +57,7 @@ class Claim:
     source_step: int
     text: str
     verifiable: bool = False
-    evidence: Optional[dict] = None
+    evidence: dict | None = None
 
 
 @dataclass
@@ -70,8 +69,8 @@ class Finding:
     verdict: Verdict
     level: VerificationLevel
     explanation: str
-    expected: Optional[str] = None
-    actual: Optional[str] = None
+    expected: str | None = None
+    actual: str | None = None
     timestamp: float = field(default_factory=time.time)
 
     def to_dict(self) -> dict:

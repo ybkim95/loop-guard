@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Optional
+from typing import Any
 
 from loop_guard.guard import LoopGuard
 from loop_guard.models import Finding
@@ -44,8 +44,8 @@ class AnthropicGuard:
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
-        config: Optional[dict[str, Any]] = None,
+        api_key: str | None = None,
+        config: dict[str, Any] | None = None,
     ) -> None:
         merged_config: dict[str, Any] = {
             "verbosity": "findings_only",
@@ -66,7 +66,7 @@ class AnthropicGuard:
         step_id: int,
         response: Any,
         *,
-        metadata: Optional[dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> list[Finding]:
         """Verify an Anthropic ``Message`` response.
 
@@ -140,7 +140,7 @@ class AnthropicGuard:
         tool_input: dict[str, Any],
         tool_result: Any,
         *,
-        claimed_output: Optional[str] = None,
+        claimed_output: str | None = None,
     ) -> list[Finding]:
         """Verify a single tool call and its result.
 
@@ -199,7 +199,7 @@ class AnthropicGuard:
         step_id: int,
         text: str,
         *,
-        metadata: Optional[dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> list[Finding]:
         """Verify a plain text response (no tool use).
 
@@ -248,7 +248,7 @@ class AnthropicGuard:
     def report(
         self,
         format: str = "terminal",
-        path: Optional[str] = None,
+        path: str | None = None,
     ) -> str | dict:
         """Generate a verification report.
 

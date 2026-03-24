@@ -9,8 +9,8 @@ from loop_guard.models import (
     Claim,
     Finding,
     NormalizedStep,
-    VerificationLevel,
     Verdict,
+    VerificationLevel,
 )
 
 

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Optional
 
 from loop_guard.models import Claim, ClaimType, NormalizedStep
 

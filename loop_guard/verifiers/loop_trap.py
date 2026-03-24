@@ -5,15 +5,14 @@ from __future__ import annotations
 import difflib
 import time
 from collections import deque
-from typing import Optional
 
 from loop_guard.models import (
     Claim,
     ClaimType,
     Finding,
     NormalizedStep,
-    VerificationLevel,
     Verdict,
+    VerificationLevel,
 )
 
 
@@ -29,7 +28,7 @@ class LoopTrapVerifier:
         self.consecutive_limit = consecutive_limit
         self._recent_outputs: deque[str] = deque(maxlen=20)
 
-    def verify(self, step: NormalizedStep) -> Optional[Finding]:
+    def verify(self, step: NormalizedStep) -> Finding | None:
         """Check whether the agent is stuck in a retry loop.
 
         Returns a Finding with RULE_VIOLATION if the last

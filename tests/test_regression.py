@@ -3,7 +3,7 @@
 import os
 import tempfile
 
-from loop_guard.models import NormalizedStep, Verdict, VerificationLevel
+from loop_guard.models import NormalizedStep, Verdict
 from loop_guard.verifiers.regression import RegressionVerifier
 
 

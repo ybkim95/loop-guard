@@ -4,15 +4,14 @@ from __future__ import annotations
 
 import re
 import time
-from typing import Optional
 
 import httpx
 
 from loop_guard.models import (
     Claim,
     Finding,
-    VerificationLevel,
     Verdict,
+    VerificationLevel,
 )
 
 
@@ -129,7 +128,7 @@ class CitationVerifier:
 
     def _search_crossref(
         self, author: str, year: int, title: str
-    ) -> Optional[dict]:
+    ) -> dict | None:
         """Search CrossRef for a matching work."""
         self._rate_limit()
         params = {
@@ -162,7 +161,7 @@ class CitationVerifier:
 
     def _search_semantic_scholar(
         self, author: str, year: int, title: str
-    ) -> Optional[dict]:
+    ) -> dict | None:
         """Search Semantic Scholar for a matching paper."""
         self._rate_limit()
         query = f"{author} {year} {title}".strip()

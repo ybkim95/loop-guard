@@ -1,7 +1,7 @@
 """Tests for ClaimExtractor."""
 
-from loop_guard.models import ClaimType, NormalizedStep
 from loop_guard.extractor import ClaimExtractor
+from loop_guard.models import ClaimType, NormalizedStep
 
 
 def _make_step(output: str, step_id: int = 0) -> NormalizedStep:

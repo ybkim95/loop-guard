@@ -6,13 +6,12 @@ import os
 import subprocess
 import tempfile
 import time
-from typing import Optional
 
 from loop_guard.models import (
     Claim,
     Finding,
-    VerificationLevel,
     Verdict,
+    VerificationLevel,
 )
 
 
@@ -109,7 +108,7 @@ class MetricVerifier:
             timestamp=time.time(),
         )
 
-    def _recompute(self, code: str, sandbox_dir: str) -> Optional[float]:
+    def _recompute(self, code: str, sandbox_dir: str) -> float | None:
         """Execute code in sandbox and parse the last line as a float."""
         os.makedirs(sandbox_dir, exist_ok=True)
 

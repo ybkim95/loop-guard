@@ -168,7 +168,6 @@ def _watch_file(guard: LoopGuard, filepath: str, follow: bool, delimiter: str, o
 
 def _watch_git(guard: LoopGuard, git_dir: str, poll_interval: int, output: str | None) -> int:
     """Watch git commits in a directory."""
-    import subprocess
 
     path = Path(git_dir)
     if not path.exists():

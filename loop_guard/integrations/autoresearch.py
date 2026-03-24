@@ -18,19 +18,17 @@ Usage:
 from __future__ import annotations
 
 import csv
-import os
 import time
-from dataclasses import dataclass, field
+from collections.abc import Callable
+from dataclasses import dataclass
 from difflib import SequenceMatcher
 from pathlib import Path
-from typing import Callable
 
 from loop_guard.guard import LoopGuard
 from loop_guard.models import (
     Claim,
     ClaimType,
     Finding,
-    NormalizedStep,
     Verdict,
     VerificationLevel,
 )
@@ -388,7 +386,7 @@ class AutoresearchGuard:
         crashed = sum(1 for e in self.experiments if e.status == "crash")
         best_bpb = min((e.val_bpb for e in self.experiments if e.status == "keep"), default=0)
 
-        print(f"\n[loop-guard:autoresearch] Summary:")
+        print("\n[loop-guard:autoresearch] Summary:")
         print(f"  Total experiments: {total}")
         print(f"  Kept: {kept} | Discarded: {discarded} | Crashed: {crashed}")
         if best_bpb > 0:

@@ -33,7 +33,8 @@ import hashlib
 import json
 import subprocess
 import time
-from typing import Any, Callable, Optional
+from collections.abc import Callable
+from typing import Any
 
 import httpx
 
@@ -219,7 +220,7 @@ class ToolOutputVerifier:
         # Safety: refuse dangerous commands
         dangerous = ["rm ", "sudo ", "chmod ", "chown ", "mkfs", "dd ", "> /dev"]
         if any(d in command for d in dangerous):
-            return self._skip(claim, f"Refusing to re-execute potentially dangerous command")
+            return self._skip(claim, "Refusing to re-execute potentially dangerous command")
 
         try:
             result = subprocess.run(

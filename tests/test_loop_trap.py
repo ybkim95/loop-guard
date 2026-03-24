@@ -43,7 +43,7 @@ class TestLoopTrapVerifier:
 
         for i in range(4):
             # Slightly different numbers each time, but very similar structure
-            f = v.verify(_make_step(i, base.format(0.5 + i * 0.001, 85.0 + i * 0.01)))
+            v.verify(_make_step(i, base.format(0.5 + i * 0.001, 85.0 + i * 0.01)))
 
         # With very similar outputs, should eventually trigger
         # The exact behavior depends on similarity threshold

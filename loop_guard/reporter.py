@@ -1,6 +1,7 @@
-import json
 import html as html_module
+import json
 from pathlib import Path
+
 from loop_guard.models import Finding, Verdict
 
 

@@ -1,6 +1,6 @@
 """Tests for StatisticalVerifier."""
 
-from loop_guard.models import Claim, ClaimType, NormalizedStep, Verdict, VerificationLevel
+from loop_guard.models import Claim, ClaimType, NormalizedStep, Verdict
 from loop_guard.verifiers.statistical import StatisticalVerifier
 
 

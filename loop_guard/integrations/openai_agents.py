@@ -20,14 +20,13 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Any, Optional
+from typing import Any
 
 from loop_guard.guard import LoopGuard
 from loop_guard.models import (
     Claim,
     ClaimType,
     Finding,
-    NormalizedStep,
     Verdict,
     VerificationLevel,
 )

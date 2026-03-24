@@ -1,12 +1,10 @@
 """Tests for autoresearch integration."""
 
-import os
 import tempfile
 from pathlib import Path
 
-from loop_guard.integrations.autoresearch import AutoresearchGuard, ExperimentRecord
+from loop_guard.integrations.autoresearch import AutoresearchGuard
 from loop_guard.models import Verdict
-
 
 BASIC_TSV = """\
 commit\tval_bpb\tmemory_gb\tstatus\tdescription
@@ -21,7 +19,7 @@ class TestAutoresearchGuard:
         with tempfile.TemporaryDirectory() as tmp:
             Path(tmp, "results.tsv").write_text(BASIC_TSV)
             guard = AutoresearchGuard(tmp)
-            findings = guard.check()
+            guard.check()
             assert len(guard.experiments) == 3
 
     def test_detects_crash_loop(self):

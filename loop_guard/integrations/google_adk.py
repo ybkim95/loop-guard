@@ -29,15 +29,14 @@ Usage (with Gemini directly):
 from __future__ import annotations
 
 import json
-import time
-from typing import Any, Callable, Optional
+from collections.abc import Callable
+from typing import Any
 
 from loop_guard.guard import LoopGuard
 from loop_guard.models import (
     Claim,
     ClaimType,
     Finding,
-    NormalizedStep,
     Verdict,
     VerificationLevel,
 )
@@ -264,17 +263,17 @@ class GeminiGuard:
         try:
             from google import genai
             self.client = genai.Client(api_key=api_key)
-        except ImportError:
+        except ImportError as exc:
             raise ImportError(
                 "google-genai is required: pip install google-genai"
-            )
+            ) from exc
 
     def generate(
         self,
         prompt: str,
         system_instruction: str | None = None,
         tools: list | None = None,
-    ) -> "GeminiVerifiedResponse":
+    ) -> GeminiVerifiedResponse:
         """Generate a response and verify it with loop-guard."""
         from google.genai import types
 
@@ -312,7 +311,7 @@ class GeminiGuard:
         self,
         prompts: list[str],
         system_instruction: str | None = None,
-    ) -> list["GeminiVerifiedResponse"]:
+    ) -> list[GeminiVerifiedResponse]:
         """Run multiple prompts sequentially with provenance tracking.
 
         Each prompt can reference results from previous steps.

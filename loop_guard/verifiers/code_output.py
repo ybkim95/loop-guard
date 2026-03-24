@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import math
 import os
 import subprocess
 import tempfile
@@ -11,8 +10,8 @@ import time
 from loop_guard.models import (
     Claim,
     Finding,
-    VerificationLevel,
     Verdict,
+    VerificationLevel,
 )
 
 
