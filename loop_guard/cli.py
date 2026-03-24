@@ -46,6 +46,24 @@ def main(argv: list[str] | None = None) -> int:
     check_parser.add_argument("--output", type=str, help="Output report path")
     check_parser.add_argument("--format", choices=["html", "json", "terminal"], default="terminal")
 
+    # autoresearch command
+    ar_parser = subparsers.add_parser(
+        "autoresearch", help="Monitor autoresearch experiments via results.tsv"
+    )
+    ar_parser.add_argument("dir", type=str, help="Autoresearch project directory")
+    ar_parser.add_argument("--poll", type=int, default=30, help="Poll interval in seconds")
+    ar_parser.add_argument(
+        "--plateau-window", type=int, default=10, help="Number of experiments for plateau detection"
+    )
+    ar_parser.add_argument(
+        "--plateau-threshold", type=float, default=0.0001, help="Minimum improvement threshold"
+    )
+    ar_parser.add_argument("--crash-limit", type=int, default=5, help="Consecutive crashes to flag")
+    ar_parser.add_argument(
+        "--check", action="store_true", help="One-shot check instead of watching"
+    )
+    ar_parser.add_argument("--output", type=str, help="Output report path")
+
     args = parser.parse_args(argv)
 
     if args.command is None:
@@ -56,6 +74,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_watch(args)
     elif args.command == "report":
         return _cmd_report(args)
+    elif args.command == "autoresearch":
+        return _cmd_autoresearch(args)
     elif args.command == "check":
         return _cmd_check(args)
 
@@ -322,6 +342,35 @@ def _cmd_check(args) -> int:
     if s.get("verified_failures", 0) > 0:
         return 1
     return 0
+
+
+def _cmd_autoresearch(args) -> int:
+    """Monitor autoresearch experiments."""
+    from loop_guard.integrations.autoresearch import AutoresearchGuard
+
+    project_dir = Path(args.dir)
+    if not project_dir.exists():
+        print(f"[loop-guard] Error: Directory not found: {args.dir}", file=sys.stderr)
+        return 1
+
+    guard = AutoresearchGuard(
+        str(project_dir),
+        plateau_window=args.plateau_window,
+        plateau_threshold=args.plateau_threshold,
+        crash_limit=args.crash_limit,
+    )
+
+    if args.check:
+        findings = guard.check()
+        print(f"\n[loop-guard:autoresearch] Summary: {json.dumps(guard.summary, indent=2)}")
+        if args.output:
+            guard.guard.report(format="html" if args.output.endswith(".html") else "json", path=args.output)
+            print(f"[loop-guard] Report written to {args.output}", file=sys.stderr)
+        fail_count = sum(1 for f in findings if f.verdict.value in ("verified_fail", "rule_violation"))
+        return 1 if fail_count > 0 else 0
+    else:
+        guard.watch(poll_interval=args.poll)
+        return 0
 
 
 def _finalize(guard: LoopGuard, output: str | None) -> None:
