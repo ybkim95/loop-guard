@@ -16,9 +16,17 @@ CITATION_PATTERN = re.compile(
 )
 
 METRIC_PATTERN = re.compile(
-    r'((?:accuracy|precision|recall|f1|loss|val_bpb|auc|rmse|mae|mse|r2|bleu|rouge)'
-    r'[\s:=]+[\d.]+%?'
-    r'|(?:accuracy|precision|recall|f1|loss|auc|rmse|mae)\s+(?:of|is|was|at)\s+[\d.]+%?)',
+    r'((?:accuracy|precision|recall|f1|loss|val_bpb|auc|rmse|mae|mse|bleu|rouge)'
+    r'[\s:=]+[-+]?[\d.]+%?'
+    r'|(?:accuracy|precision|recall|f1|loss|auc|rmse|mae)\s+(?:of|is|was|at)\s+[-+]?[\d.]+%?)',
+    re.IGNORECASE,
+)
+
+# Statistical value patterns: R², variance, and other quantities that
+# have known valid ranges and should be checked by StatisticalVerifier.
+STATISTICAL_VALUE_PATTERN = re.compile(
+    r'(R[²2]\s*[=:]\s*[-+]?[\d.]+'
+    r'|variance\s*[=:]\s*[-+]?[\d.]+)',
     re.IGNORECASE,
 )
 
@@ -41,6 +49,7 @@ FILE_STATE_PATTERN = re.compile(
 # Map patterns to claim types and whether the claim is deterministically verifiable.
 _REGEX_RULES: list[tuple[re.Pattern, ClaimType, bool]] = [
     (CITATION_PATTERN, ClaimType.CITATION, False),
+    (STATISTICAL_VALUE_PATTERN, ClaimType.STATISTICAL, True),
     (METRIC_PATTERN, ClaimType.METRIC, True),
     (PVALUE_PATTERN, ClaimType.STATISTICAL, True),
     (TEST_PATTERN, ClaimType.TEST_RESULT, True),
