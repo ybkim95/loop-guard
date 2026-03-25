@@ -5,183 +5,135 @@
 loop-guard catches silent errors in agent loops by re-running code, looking up citations, and checking statistics — not by asking another LLM if the output "looks right."
 
 [![PyPI](https://img.shields.io/pypi/v/loopguard-ai)](https://pypi.org/project/loopguard-ai/)
-[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)](https://python.org)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue)](https://python.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
-
-## The Problem
-
-Autonomous agent loops run for hours without human oversight. Agents make intermediate claims — "accuracy is 94%", "tests pass", "p < 0.05" — that compound over hundreds of steps. A wrong claim at step 23 becomes the premise for steps 24–100. Nobody catches the error until a human reviews the final output, if at all.
-
-## How loop-guard Works
-
-```
-Agent Loop → Integration Layer → Claim Extractor → Verification Engine → Reporter
-                                    (regex-first)     (3 layers)         (terminal/JSON/HTML)
-```
-
-**Three verification layers, in order of reliability:**
-
-| Layer | Method | Reliability | Example |
-|-------|--------|-------------|---------|
-| **L1: Deterministic** | Re-execute code, API lookup, re-compute | Cannot be wrong | Citation lookup, code re-run |
-| **L2: Rule-based** | Pattern matching, sanity checks | Rarely wrong | p > 1 detection, loop trap |
-| **L3: LLM-assisted** | Soft flagging only | May be wrong | General claim flagging |
-
-**Key principle:** Verification must be more reliable than the thing being verified. LLMs are used only for claim extraction (a structured task), never for judgment.
 
 ## Install
 
 ```bash
 pip install loopguard-ai
-
-# With LLM-based claim extraction (optional)
-pip install loopguard-ai[llm]
 ```
 
 ## Quick Start
-
-### Python API (2 lines to integrate)
 
 ```python
 from loop_guard import LoopGuard
 
 guard = LoopGuard()
 
-# Works with ANY agent loop — OpenAI, Anthropic, Google ADK, LangGraph, custom
+# Works with ANY agent loop
 for i in range(num_experiments):
     result = agent.run(task)
-    findings = guard.step(
-        output=result.text,
-        code=result.code_executed,       # optional
-        files=result.files_modified,     # optional
-    )
+    findings = guard.step(output=result.text)
     for f in findings:
-        print(f)  # FAIL/WARN/FLAG with explanation
-
-# Generate report
-guard.report(format="html", path="audit.html")
+        print(f)
 ```
-
-### CLI (zero code change)
 
 ```bash
-# Pipe any agent's stdout
+# CLI: pipe any agent's stdout
 python my_agent.py 2>&1 | loop-guard watch
 
-# Watch a log file
-loop-guard watch --file agent.log --follow
-
-# Watch git commits (for autoresearch)
-loop-guard watch --git-dir ./experiments/ --poll 30
-
-# Check a transcript
-loop-guard check --input transcript.txt --format html
+# Monitor autoresearch
+loop-guard autoresearch ./autoresearch/ --poll 30
 ```
 
-## What Gets Verified
+## Benchmarks
 
-### Verifiers
+Every claim below is backed by reproducible benchmarks in [`benchmarks/`](benchmarks/).
+
+### Statistical Verifier (n=100)
+
+50 correct + 50 incorrect statistical claims (impossible p-values, accuracy > 100%, negative variance, small sample sizes).
+
+| Metric | Score |
+|--------|-------|
+| Precision | **94.2%** (49/52) |
+| Recall | **98.0%** (49/50) |
+| F1 | **96.1%** |
+
+3 false positives (regex matched unrelated numbers as sample sizes). 1 false negative (natural language variant "variance was -3.7" not caught by `variance =` pattern).
+
+### Citation Verifier (n=100, live API)
+
+50 real citations (well-known ML papers) + 50 fabricated citations, verified against CrossRef and Semantic Scholar.
+
+| Metric | Score |
+|--------|-------|
+| Precision | **84.8%** (28/33) |
+| Fake detection | **89.8%** (44/49) |
+| Recall | **56.0%** (28/50) |
+
+**Limitation:** Recall is 56% because papers with short/generic titles (BERT, Adam, Dropout) don't match the longer titles returned by APIs. The citation verifier is a screening tool, not a definitive oracle. Citations flagged as FAIL deserve human review.
+
+### False Positive Rate (n=50)
+
+50 clean agent outputs (valid metrics, correct statistics, normal training logs).
+
+| Metric | Score |
+|--------|-------|
+| False positive rate | **0.0%** |
+
+Zero false alarms on clean data.
+
+## How It Works
+
+```
+Agent Loop → Claim Extractor → Verification Engine → Reporter
+               (regex-first)      (3 layers)         (terminal/JSON/HTML)
+```
+
+| Layer | Method | Reliability |
+|-------|--------|-------------|
+| **L1: Deterministic** | Re-execute code, API lookup | Cannot be wrong |
+| **L2: Rule-based** | Pattern matching, sanity checks | Benchmarked above |
+| **L3: LLM-assisted** | Soft flagging only | May be wrong |
+
+LLMs are used only for claim extraction (a structured task), never for judgment.
+
+## Verifiers
 
 | Verifier | Layer | What it catches |
 |----------|-------|----------------|
-| **LoopTrapVerifier** | L2 | Agent stuck retrying the same failing approach |
+| **StatisticalVerifier** | L2 | Impossible p-values, accuracy > 100%, missing corrections |
+| **CitationVerifier** | L1 | Fabricated citations (CrossRef + Semantic Scholar lookup) |
+| **LoopTrapVerifier** | L2 | Agent stuck retrying the same approach |
 | **RegressionVerifier** | L2 | Agent reverts a file to a previous version |
-| **CitationVerifier** | L1 | Hallucinated academic citations (CrossRef + Semantic Scholar) |
-| **StatisticalVerifier** | L2 | Impossible p-values, missing multiple comparison correction, small samples |
-| **CodeOutputVerifier** | L1 | Agent claims code produced output X, but re-execution produces Y |
-| **MetricVerifier** | L1 | Agent claims metric = X, but re-computation gives Y |
+| **CodeOutputVerifier** | L1 | Code re-execution produces different output |
+| **MetricVerifier** | L1 | Metric re-computation doesn't match claim |
+| **ToolOutputVerifier** | L1 | Tool re-execution produces different result |
+| **ProvenanceChain** | L2 | Downstream claims tainted by upstream failures |
 
-### Claim Extraction
-
-Claims are extracted from agent output using a **regex-first pipeline**:
-
-1. **Regex patterns** catch citations, metrics, p-values, test results, and file modifications
-2. **LLM extraction** (optional) handles remaining unstructured text
-3. Claims are typed: `CODE_OUTPUT`, `METRIC`, `STATISTICAL`, `CITATION`, `TEST_RESULT`, `FILE_STATE`, `GENERAL`
-
-## Output
-
-### Terminal (real-time)
-
-```
-[loop-guard] Step 4 [FAIL] [L2] Impossible statistical value: accuracy = 105.3% (> 100%)
-             Expected: accuracy ∈ [0%, 100%]
-             Actual:   105.3%
-[loop-guard] Step 3 [WARN] [L1] Citation not found in CrossRef or Semantic Scholar
-             Expected: Fakenstein et al. 2025
-             Actual:   No matching paper found
-[loop-guard] Step 7 [WARN] [L2] Agent appears stuck: 3 consecutive similar outputs
-```
-
-### JSON Report
-
-```bash
-loop-guard check --input transcript.txt --output report.json --format json
-```
-
-### HTML Report
-
-```bash
-loop-guard check --input transcript.txt --output report.html --format html
-```
-
-Produces a styled, shareable HTML report with findings grouped by step, color-coded by severity.
-
-## Configuration
+## Framework Integrations
 
 ```python
-guard = LoopGuard(config={
-    # Claim extraction
-    "use_llm_extraction": True,              # Enable LLM fallback extraction
-    "extraction_model": "claude-haiku-4-5-20251001",  # Model for extraction
+# Google Gemini / ADK
+from loop_guard.integrations.google_adk import GeminiGuard
+guard = GeminiGuard(api_key="...")
+result = guard.generate("Analyze this data...")
 
-    # Verification
-    "sandbox_dir": "/tmp/loopguard_sandbox", # Code execution sandbox
-    "timeout": 60,                           # Sandbox timeout (seconds)
+# OpenAI
+from loop_guard.integrations.openai_agents import OpenAIGuard
 
-    # Loop trap detection
-    "similarity_threshold": 0.8,             # Output similarity threshold
-    "consecutive_limit": 3,                  # Consecutive similar outputs to trigger
+# Anthropic Claude
+from loop_guard.integrations.anthropic_sdk import AnthropicGuard
 
-    # Reporting
-    "verbosity": "findings_only",            # all | findings_only | failures_only
-})
+# Autoresearch
+from loop_guard.integrations.autoresearch import AutoresearchGuard
 ```
 
-## Architecture
+## Limitations
 
-```
-loop_guard/
-├── __init__.py          # Public API
-├── models.py            # ClaimType, Verdict, Finding, etc.
-├── extractor.py         # Regex-first claim extraction
-├── engine.py            # Verification routing engine
-├── reporter.py          # Terminal, JSON, HTML output
-├── guard.py             # LoopGuard (main entry point)
-├── cli.py               # CLI (loop-guard watch/check/report)
-└── verifiers/
-    ├── loop_trap.py     # Stuck loop detection
-    ├── regression.py    # File regression detection
-    ├── citation.py      # CrossRef + Semantic Scholar lookup
-    ├── statistical.py   # Statistical sanity checks
-    ├── code_output.py   # Code re-execution
-    └── metric.py        # Metric re-computation
-```
+1. **Citation recall is 56%.** Papers with short/generic titles are missed. Use as a screening tool.
+2. **No A/B experiment yet.** We have not proven loop-guard improves final agent outcomes.
+3. **Code re-execution assumes determinism.** Non-deterministic code produces false positives.
+4. **Regex-based extraction.** Claims not matching predefined patterns are missed.
+5. **Autoresearch analysis is retrospective.** Not a live monitoring experiment.
 
 ## What loop-guard Is NOT
 
-- **NOT an LLM-as-judge system.** Those share the same failure modes as the agent being judged.
-- **NOT a prompt injection detector.** Use dedicated security tools for that.
-- **NOT a post-hoc evaluation tool.** It runs in-loop, catching errors as they happen.
+- **NOT an LLM-as-judge system.** Those share the same failure modes as the agent.
+- **NOT a prompt injection detector.**
 - **NOT a replacement for human review.** It flags issues for humans to investigate.
-
-## Examples
-
-See the [`examples/`](examples/) directory:
-
-- `autoresearch_demo.py` — ML experiment loop with metric/citation/loop-trap verification
-- `openai_sdk_demo.py` — Coding agent integration pattern
-- `adk_demo.py` — Data analysis agent with statistical verification
 
 ## Contributing
 

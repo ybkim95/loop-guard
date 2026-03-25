@@ -1,194 +1,135 @@
-# loop-guard: Your Agent's Claims Are Wrong. Here's Proof.
+# loop-guard: Deterministic Verification for Autonomous Agent Loops
 
-*Deterministic verification for autonomous agent loops — not another LLM-as-judge.*
+*Not another LLM-as-judge. Re-run the code. Look up the citation. Check the math.*
 
 ---
 
-## The Problem Nobody's Measuring
+## The Problem
 
-Autonomous agent loops — autoresearch, coding agents, data science pipelines — run for hours without human oversight. During these loops, agents make hundreds of intermediate claims:
+Autonomous agent loops — autoresearch, coding agents, data science pipelines — run for hours without human oversight. Agents make intermediate claims that compound: "accuracy is 94%", "p < 0.05", "Smith et al. 2024 showed...". A wrong claim at step 23 becomes the premise for steps 24–100.
 
-- "accuracy is 94%"
-- "all tests pass"
-- "Smith et al. 2024 showed..."
-- "p < 0.05, statistically significant"
+loop-guard is a framework-agnostic verification layer that performs deterministic checks on agent claims at each step. It does NOT use LLMs to judge LLMs. It re-runs code, looks up citations in academic databases, and checks statistics using rules.
 
-These claims compound. A wrong claim at step 23 becomes the premise for steps 24–100. Nobody catches the error until a human reviews the final output — if they review it at all.
+## Benchmarks
 
-**This isn't hypothetical.** In 2026:
-- GPTZero found 50+ hallucinated citations in ICLR papers that peer reviewers missed
-- DryRun Security found Claude Code, Codex, and Gemini all introduce broken access control in iterative coding sessions
-- Autoresearch users have no way to know if experiment 73 is building on a flawed conclusion from experiment 41
+We benchmarked each verifier on curated datasets. Here are the numbers, honestly reported with limitations.
 
-## What if we just... checked?
+### Statistical Verifier (n=100)
 
-Not with another LLM (that has the same failure modes as the agent being judged). With deterministic tools:
+Tested on 50 correct and 50 incorrect statistical claims (impossible p-values, accuracy > 100%, negative variance, missing multiple comparison corrections, small sample sizes).
 
-- **Re-run the code.** Agent says "this code outputs 42"? Run it. Check.
-- **Look up the citation.** Agent cites "Smith et al. 2024"? Query CrossRef and Semantic Scholar. Is it real?
-- **Check the math.** Agent reports "p = 1.5"? That's impossible. Flag it.
-- **Detect loops.** Agent has produced 3 near-identical outputs in a row? It's stuck.
+| Metric | Score |
+|--------|-------|
+| Precision | **94.2%** |
+| Recall | **98.0%** |
+| F1 | **96.1%** |
 
-This is **loop-guard**: a framework-agnostic verification layer that attaches to any agent loop and performs deterministic checks on agent claims at each step.
+**3 false positives:** The regex matched unrelated numbers as sample sizes (e.g., extracted `n=12` from "Standard deviation = 12.4" and flagged it as a small sample). These are fixable pattern improvements.
 
-## Real Results: We Ran It on Karpathy's Autoresearch
+**1 false negative:** "The variance was -3.7" was missed because the regex requires `variance =` or `variance:` but the text used "variance was". Edge case in natural language variation.
 
-We analyzed the real results from Karpathy's first public autoresearch overnight run (126 experiments, ~10.5 hours of GPU time).
+### Citation Verifier (n=100, live API)
 
-### What loop-guard found:
+Tested on 50 real citations (well-known ML/NLP papers) and 50 fabricated citations, verified against CrossRef and Semantic Scholar APIs.
 
-```
-Total experiments: 126 (23 kept, 102 discarded, 1 crashed)
-Keep rate: 18.3%
-GPU time wasted on failed experiments: 8.6 hours
+| Metric | Score |
+|--------|-------|
+| Precision | **84.8%** |
+| Fake detection rate | **89.8%** |
+| Recall | **56.0%** |
 
-Longest unproductive streak: 25 experiments = 125 min
-  (Steps 41–65: zero improvements)
+**Why recall is 56%, not higher:** Many well-known papers (BERT, Adam, Dropout, GPT-4 Technical Report) have short or generic titles that don't match the longer titles returned by APIs. This is a limitation of token-level title matching against academic databases. We report this honestly rather than hiding it.
 
-Success rate alerts: 12
-  (0% keep rate over 20-experiment windows)
-```
+**5 false positives on fakes:** Some fabricated titles like "Self-Improving Language Models via Recursive Distillation" partially match real papers about language models. Title-level verification has inherent limits when fake titles use real terminology.
 
-### The val_bpb improvement trajectory:
+**What this means practically:** The citation verifier is good at catching obviously fabricated citations (90% detection rate) and has high precision when it does confirm a citation (85%). It should be used as a screening tool, not as a definitive oracle. Citations it flags as FAIL deserve human review.
 
-```
-Step   0: 0.997900  ★ baseline
-Step   1: 0.986041  ▲ halve batch size (big win)
-Step   2: 0.981773  ▲ extra layer
-Step   8: 0.975524  ▲ embedding LR tuning
-Step  13: 0.973104  ▲ unembedding LR
-   ...then 26 discards...
-Step  40: 0.972694    add weight decay
-   ...then 25 discards (125 min wasted)...
-Step  66: 0.972258    init scale
-   ...then 25 more discards (125 min wasted)...
-Step 118: 0.969686  ★ final best
-```
+### False Positive Rate (n=50)
 
-**If loop-guard had been running:** Alert at step ~45 ("0% keep rate in last 20 experiments") → human intervenes, changes `program.md` → saves ~2 hours of unproductive GPU time. The agent reaches 0.9697 faster.
+Tested on 50 clean agent outputs containing no errors — valid metrics, correct statistics, normal training logs.
 
-## Real Results: We Ran It on Gemini
+| Metric | Score |
+|--------|-------|
+| False positive rate | **0.0%** |
 
-We called the real Gemini 2.0 Flash API with a multi-step research workflow and loop-guard verifying every step:
+Zero false alarms on clean data. loop-guard does not cry wolf.
 
-```
-7 Gemini API calls → 22 claims verified
+## Autoresearch Analysis (Retrospective)
 
-VERIFIED_FAIL: 2
-  - Citation "Dinges 1992" not found in CrossRef/Semantic Scholar
-  - Citation format mismatch with actual publication
+**Important caveat:** This is a retrospective analysis of Karpathy's published results, not a live experiment. We analyzed the `results.tsv` from the first public autoresearch overnight run (126 experiments). loop-guard was **not running during the original experiment**.
 
-FLAG_FOR_REVIEW: 9
-  - Multiple p-value comparisons without Bonferroni correction
-  - Claims at step 3 TAINTED because they depend on step 2 (which had VERIFIED_FAIL)
+What loop-guard's autoresearch monitor detected post-hoc:
+- 12 success rate alerts (periods where 0% of experiments were kept over 20-experiment windows)
+- Longest unproductive streak: 25 consecutive discards (125 min of GPU time)
 
-Provenance: 10 dependency edges, max depth 2
-  - Step 3 automatically flagged because step 2 was invalidated
-```
+**What we can claim:** loop-guard's autoresearch monitor correctly identifies unproductive stretches from `results.tsv` data.
 
-**The provenance tracking is the key insight:** nobody else tracks causal dependencies between agent claims across loop iterations. When step N depends on step M and M is wrong, N is automatically flagged.
+**What we cannot yet claim:** That intervening during these stretches would have improved the final val_bpb. That requires a controlled A/B experiment with live monitoring, which we have not run.
+
+## Gemini API Verification (Single Run)
+
+We called Gemini 2.0 Flash with a 7-step research workflow and loop-guard verifying each step. This is a **single demonstration run**, not a systematic evaluation.
+
+Results from one run: 22 claims extracted, 2 VERIFIED_FAIL (citations), 9 FLAG_FOR_REVIEW (multiple comparisons without correction + tainted provenance chain).
+
+The provenance chain correctly flagged step 3 as tainted because it depended on step 2, which had a VERIFIED_FAIL.
 
 ## How It Works
 
 ```
 Agent Loop → Claim Extractor → Verification Engine → Reporter
                (regex-first)      (3 layers)
-
-Layer 1 (Deterministic): Re-execute code, API lookups. Cannot be wrong.
-Layer 2 (Rule-based):    Pattern matching, sanity checks. Rarely wrong.
-Layer 3 (LLM-assisted):  Soft flagging only. May be wrong.
 ```
 
-**Core principle:** Verification must be more reliable than the thing being verified. LLMs are used only for claim extraction (a structured task), never for judgment.
+**Three verification layers:**
 
-### 8 Verifiers
+| Layer | Method | Reliability |
+|-------|--------|-------------|
+| L1: Deterministic | Re-execute code, API lookups | Cannot be wrong |
+| L2: Rule-based | Pattern matching, sanity checks | Rarely wrong (benchmarked above) |
+| L3: LLM-assisted | Soft flagging only | May be wrong, needs human review |
 
-| Verifier | Layer | What it catches |
-|----------|-------|----------------|
-| LoopTrapVerifier | L2 | Agent stuck retrying the same approach |
-| RegressionVerifier | L2 | Agent reverts code to a previous version |
-| CitationVerifier | L1 | Hallucinated citations (CrossRef + Semantic Scholar) |
-| StatisticalVerifier | L2 | Impossible p-values, missing corrections, small samples |
-| CodeOutputVerifier | L1 | Code re-execution produces different output |
-| MetricVerifier | L1 | Metric re-computation doesn't match claim |
-| ToolOutputVerifier | L1 | Tool re-execution produces different result |
-| ProvenanceChain | L2 | Downstream claims tainted by upstream failures |
+LLMs are used only for claim extraction (a structured task), never for judgment.
 
-## Integration: 2 Lines of Code
+## Integration
 
 ```python
 from loop_guard import LoopGuard
 
 guard = LoopGuard()
 
-# Works with ANY agent loop
 for step in agent.run(task):
     findings = guard.step(output=step.text)
-    for f in findings:
-        if f.verdict == "verified_fail":
-            print(f"ALERT: {f.explanation}")
 ```
 
-### Framework-specific wrappers
-
-```python
-# Google Gemini / ADK
-from loop_guard.integrations.google_adk import GeminiGuard
-guard = GeminiGuard(api_key="...")
-result = guard.generate("Analyze this data...")
-
-# OpenAI
-from loop_guard.integrations.openai_agents import OpenAIGuard
-guard = OpenAIGuard(api_key="sk-...")
-
-# Anthropic Claude
-from loop_guard.integrations.anthropic_sdk import AnthropicGuard
-guard = AnthropicGuard(api_key="sk-ant-...")
-
-# Autoresearch
-loop-guard autoresearch ./autoresearch/ --poll 30
-```
-
-### CLI (zero code change)
-
-```bash
-# Pipe any agent's stdout
-python my_agent.py | loop-guard watch
-
-# Watch autoresearch
-loop-guard autoresearch ./experiments/ --poll 30
-
-# Check a transcript
-loop-guard check --input agent_log.txt
-```
-
-## Install
+Works with any agent framework. SDK wrappers available for Google Gemini/ADK, OpenAI, and Anthropic.
 
 ```bash
 pip install loopguard-ai
 ```
 
-## Why Not LLM-as-Judge?
+## Limitations
 
-The dominant approach today is using one LLM to evaluate another LLM's output. This is fundamentally limited because the judge shares the same failure modes as the agent:
+We are explicit about what loop-guard cannot do:
 
-- LLMs hallucinate citations → an LLM judge won't catch hallucinated citations
-- LLMs make statistical errors → an LLM judge will accept wrong p-values
-- LLMs can't re-run code → an LLM judge can't verify execution results
-
-loop-guard's design deliberately maximizes deterministic verification (Layer 1) and rule-based checking (Layer 2). The LLM is used only for structured claim extraction — never for judgment.
+1. **Citation verifier recall is 56%.** It misses papers with short/generic titles. It should be used as a screening tool, not a definitive oracle.
+2. **No A/B experiment yet.** We have not proven that loop-guard improves final agent outcomes. The autoresearch analysis is retrospective.
+3. **Code re-execution assumes determinism.** Non-deterministic code (random seeds, network calls) will produce false positives.
+4. **Claim extraction is regex-based.** It misses claims that don't match predefined patterns. Coverage depends on how the agent formats its output.
+5. **The Gemini demo is a single run.** Not a systematic evaluation across many tasks.
 
 ## What's Next
 
-- **NeurIPS 2026 submission** with controlled A/B experiments: same agent, same tasks, with vs without loop-guard
-- **OpenTelemetry integration** for automatic compatibility with every agent framework
-- **More verifiers:** DataIntegrityVerifier, PermissionVerifier, CostVerifier
+- Controlled A/B experiment on autoresearch (with vs without loop-guard)
+- Improve citation recall via DOI-based lookup and arXiv search
+- Systematic evaluation across 50+ agent runs
+- NeurIPS 2026 submission with empirical results
 
 ## Links
 
 - **GitHub:** https://github.com/ybkim95/loop-guard
 - **PyPI:** `pip install loopguard-ai`
-- **83 tests passing**, framework-agnostic, Python 3.10+
+- **91 tests passing**, Python 3.10+, framework-agnostic
 
 ---
 
